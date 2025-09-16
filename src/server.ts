@@ -60,12 +60,52 @@ app.get("/api/me", (req, res) => {
 });
 
 // Access Token
-app.get("/api/token", (req, res) => {
+app.get("/api/accesstoken", (req, res) => {
   const accessToken = req.header("x-ms-token-aad-access-token");
   if (!accessToken) {
     return res.status(401).json({ error: "no_token" });
   }
   return res.status(200).json({ accessToken });
+});
+
+// OBO Token
+app.get("/api/token", async (req, res) => {
+  const idToken = req.header("x-ms-token-aad-id-token");
+  if (!idToken) {
+    return res.status(401).json({ error: "no_token" });
+  }
+
+  // Exchange tokens
+  const exchange = `https://${process.env.ENTRA_TENANT_ID}.ciamlogin.com/${process.env.ENTRA_TENANT_ID}/oauth2/v2.0/token`;
+
+  // On-behalf-of (OBO) flow
+  const params = new URLSearchParams({
+    client_id: `${process.env.CLIENT_ID}`,
+    client_secret: `${process.env.CLIENT_SECRET}`,
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    requested_token_use: "on_behalf_of",
+    assertion: idToken,
+    scope: `${process.env.CLIENT_ID}`, // 👈 GUID form for self-OBO
+  });
+
+  try {
+    // Make the request
+    const response = await fetch(exchange, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params,
+    });
+    // Get the response
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(500).json({ error: "obo_failed", details: data });
+    }
+    return res.json({ accessToken: data.access_token });
+  } catch (err) {
+    // Handle errors
+    console.error("OBO exception:", err);
+    return res.status(500).json({ error: "obo_exception" });
+  }
 });
 
 // Access Token
