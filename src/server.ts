@@ -68,6 +68,15 @@ app.get("/api/token", (req, res) => {
   return res.status(200).json({ accessToken });
 });
 
+// Access Token
+app.get("/api/idtoken", (req, res) => {
+  const idToken = req.header("x-ms-token-aad-id-token");
+  if (!idToken) {
+    return res.status(401).json({ error: "no_token" });
+  }
+  return res.status(200).json({ idToken });
+});
+
 //  Start the server
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () => {
