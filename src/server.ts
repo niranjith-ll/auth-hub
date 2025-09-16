@@ -85,7 +85,7 @@ app.get("/api/token", async (req, res) => {
     grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
     requested_token_use: "on_behalf_of",
     assertion: idToken,
-    scope: `${process.env.CLIENT_ID}`, // 👈 GUID form for self-OBO
+    scope: `${process.env.CLIENT_ID}/user_impersonation`, // 👈 GUID form for self-OBO
   });
 
   try {
