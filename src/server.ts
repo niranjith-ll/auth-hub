@@ -60,7 +60,7 @@ app.get("/api/me", (req, res) => {
 });
 
 // Access Token
-app.get("/api/accesstoken", (req, res) => {
+app.get("/api/token", (req, res) => {
   const accessToken = req.header("x-ms-token-aad-access-token");
   if (!accessToken) {
     return res.status(401).json({ error: "no_token" });
@@ -69,7 +69,7 @@ app.get("/api/accesstoken", (req, res) => {
 });
 
 // OBO Token
-app.get("/api/token", async (req, res) => {
+app.get("/api/obotoken", async (req, res) => {
   const idToken = req.header("x-ms-token-aad-id-token");
   if (!idToken) {
     return res.status(401).json({ error: "no_token" });
