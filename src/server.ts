@@ -132,6 +132,24 @@ app.get("/api/idtoken", (req, res) => {
   return res.status(200).json({ idToken });
 });
 
+// Session info
+app.get("/api/session", (req, res) => {
+  const principalHeader = req.header("x-ms-client-principal");
+  const expiresOn = req.header("x-ms-token-aad-expires-on");
+
+  if (!principalHeader || !expiresOn) {
+    return res.status(401).json({ authenticated: false });
+  }
+
+  const principal = JSON.parse(Buffer.from(principalHeader, "base64").toString("utf8"));
+  return res.json({
+    authenticated: true,
+    expiresOn: Number(expiresOn) * 1000,
+    principal,
+  });
+});
+
+
 //  Start the server
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () => {
