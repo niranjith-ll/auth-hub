@@ -60,12 +60,27 @@ app.get("/api/me", (req, res) => {
 });
 
 // Access Token
-app.get("/api/token", (req, res) => {
-  const accessToken = req.header("x-ms-token-aad-access-token");
-  if (!accessToken) {
-    return res.status(401).json({ error: "no_token" });
+app.get("/api/token", async (req, res) => {
+  try {
+    // Trigger App Service to refresh tokens
+    await fetch(`${process.env.BASE_URL}/.auth/refresh`, {
+      method: "GET",
+      headers: {
+        Cookie: req.headers.cookie || "", // Pass session cookie to preserve auth
+      },
+    });
+
+    // Read the updated access token from request headers
+    const accessToken = req.header("x-ms-token-aad-access-token");
+    if (!accessToken) {
+      return res.status(401).json({ error: "no_token" });
+    }
+
+    return res.status(200).json({ accessToken });
+  } catch (err) {
+    console.error("Token refresh error:", err);
+    return res.status(500).json({ error: "refresh_exception" });
   }
-  return res.status(200).json({ accessToken });
 });
 
 // OBO Token
