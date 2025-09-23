@@ -18,14 +18,36 @@ app.use((req, res, next) => {
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 // Login
+// app.get("/login", (req, res) => {
+//   const base = process.env.BASE_URL!;
+//   const returnTo =
+//     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+//   const loginUrl = new URL("/.auth/login/aad", base);
+//   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
+//   res.redirect(loginUrl.toString());
+// });
+
+// Login
 app.get("/login", (req, res) => {
   const base = process.env.BASE_URL!;
+  const referer = req.get("Referer");
+
+  // Validate referer against *.lodgelink.com
+  const isValidReferer =
+    referer &&
+    /^https:\/\/([a-z0-9-]+\.)?lodgelink\.com(\/|$)/i.test(referer);
+
   const returnTo =
-    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+    (req.query.returnTo as string) ??
+    (isValidReferer ? referer : "https://app.lodgelink.com");
+
   const loginUrl = new URL("/.auth/login/aad", base);
-  loginUrl.searchParams.set("post_login_redirect_url", returnTo);
+  loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
+
+  console.log("Redirecting to:", loginUrl.toString());
   res.redirect(loginUrl.toString());
 });
+
 
 //  Logout
 app.get("/logout", (req, res) => {
