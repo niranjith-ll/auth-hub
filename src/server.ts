@@ -3,16 +3,30 @@ import express from "express";
 const app = express();
 
 // CORS
+const allowedOrigins = [
+  "https://customer-entra.lodgelink.com",
+  "https://admin-entra.lodgelink.com",
+  "http://localhost:8000",
+  "http://localhost:8002"  // 👈 Add this for local development
+];
+
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Headers", "content-type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-ms-token-aad-access-token");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
+
   next();
 });
+
 
 // Health
 app.get("/health", (_, res) => res.json({ ok: true }));
