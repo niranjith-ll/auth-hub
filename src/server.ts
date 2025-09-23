@@ -18,36 +18,14 @@ app.use((req, res, next) => {
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 // Login
-// app.get("/login", (req, res) => {
-//   const base = process.env.BASE_URL!;
-//   const returnTo =
-//     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-//   const loginUrl = new URL("/.auth/login/aad", base);
-//   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
-//   res.redirect(loginUrl.toString());
-// });
-
-// Login
 app.get("/login", (req, res) => {
   const base = process.env.BASE_URL!;
-  const referer = req.get("Referer");
-
-  // Validate referer against *.lodgelink.com
-  const isValidReferer =
-    referer &&
-    /^https:\/\/([a-z0-9-]+\.)?lodgelink\.com(\/|$)/i.test(referer);
-
   const returnTo =
-    (req.query.returnTo as string) ??
-    (isValidReferer ? referer : "https://app.lodgelink.com");
-
+    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   const loginUrl = new URL("/.auth/login/aad", base);
-  loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
-
-  console.log("Redirecting to:", loginUrl.toString());
+  loginUrl.searchParams.set("post_login_redirect_url", returnTo);
   res.redirect(loginUrl.toString());
 });
-
 
 //  Logout
 app.get("/logout", (req, res) => {
@@ -55,7 +33,7 @@ app.get("/logout", (req, res) => {
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
   res.redirect(logoutUrl.toString());
 });
 
@@ -82,27 +60,12 @@ app.get("/api/me", (req, res) => {
 });
 
 // Access Token
-app.get("/api/token", async (req, res) => {
-  try {
-    // Trigger App Service to refresh tokens
-    await fetch(`${process.env.BASE_URL}/.auth/refresh`, {
-      method: "GET",
-      headers: {
-        Cookie: req.headers.cookie || "", // Pass session cookie to preserve auth
-      },
-    });
-
-    // Read the updated access token from request headers
-    const accessToken = req.header("x-ms-token-aad-access-token");
-    if (!accessToken) {
-      return res.status(401).json({ error: "no_token" });
-    }
-
-    return res.status(200).json({ accessToken });
-  } catch (err) {
-    console.error("Token refresh error:", err);
-    return res.status(500).json({ error: "refresh_exception" });
+app.get("/api/token", (req, res) => {
+  const accessToken = req.header("x-ms-token-aad-access-token");
+  if (!accessToken) {
+    return res.status(401).json({ error: "no_token" });
   }
+  return res.status(200).json({ accessToken });
 });
 
 // OBO Token
@@ -153,24 +116,6 @@ app.get("/api/idtoken", (req, res) => {
   }
   return res.status(200).json({ idToken });
 });
-
-// Session info
-app.get("/api/session", (req, res) => {
-  const principalHeader = req.header("x-ms-client-principal");
-  const expiresOn = req.header("x-ms-token-aad-expires-on");
-
-  if (!principalHeader || !expiresOn) {
-    return res.status(401).json({ authenticated: false });
-  }
-
-  const principal = JSON.parse(Buffer.from(principalHeader, "base64").toString("utf8"));
-  return res.json({
-    authenticated: true,
-    expiresOn: Number(expiresOn) * 1000,
-    principal,
-  });
-});
-
 
 //  Start the server
 const port = Number(process.env.PORT || 8080);
