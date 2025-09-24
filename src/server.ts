@@ -7,7 +7,7 @@ const allowedOrigins = [
   "https://customer-entra.lodgelink.com",
   "https://admin-entra.lodgelink.com",
   "http://localhost:8000",
-  "http://localhost:8002"  // 👈 Add this for local development
+  "http://localhost:8002", // 👈 Add this for local development
 ];
 
 app.use((req, res, next) => {
@@ -17,7 +17,10 @@ app.use((req, res, next) => {
   }
 
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-ms-token-aad-access-token");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-ms-token-aad-access-token"
+  );
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
 
   if (req.method === "OPTIONS") {
@@ -27,9 +30,15 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // Health
 app.get("/health", (_, res) => res.json({ ok: true }));
+
+// Root and Redirect
+app.get("/", (req, res) => {
+  const returnTo =
+    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  res.redirect(returnTo);
+});
 
 // Login
 app.get("/login", (req, res) => {
