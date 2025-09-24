@@ -6,8 +6,8 @@ const app = express();
 const allowedOrigins = [
   "https://customer-entra.lodgelink.com",
   "https://admin-entra.lodgelink.com",
-  "http://localhost:8000",
-  "http://localhost:8002", // 👈 Add this for local development
+  "https://localhost:8000",
+  "https://localhost:8002", // 👈 Add this for local development
 ];
 
 app.use((req, res, next) => {
@@ -96,12 +96,13 @@ app.get("/logout", (req, res) => {
 
   const b64 = req.header("x-ms-client-principal");
   let logoutHint = "";
-
+  console.log("logout started");
   if (b64) {
     try {
       const decoded = Buffer.from(b64, "base64").toString("utf8");
       const principal = JSON.parse(decoded) as ClientPrincipal;
       logoutHint = extractLogoutHintFromClaims(principal.claims) ?? "";
+      console.log(logoutHint);
     } catch (err) {
       console.warn("Failed to parse client principal:", err);
     }
@@ -109,6 +110,8 @@ app.get("/logout", (req, res) => {
 
   const logoutUrl = new URL("/.auth/logout", base);
   logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
+  
+  console.log("logout ended");
 
   if (logoutHint) {
     logoutUrl.searchParams.set("logout_hint", logoutHint);
