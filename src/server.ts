@@ -60,13 +60,40 @@ app.get("/login", (req, res) => {
 //   res.redirect(logoutUrl.toString());
 // });
 
+// Claim Object
+type Claim = {
+  typ: string;
+  val: string;
+};
+
+// Updated Client Principal Object
+type ClientPrincipal = {
+  auth_typ: string; // Authentication type, e.g., "aad"
+  name_typ: string; // Claim type used for name
+  role_typ: string; // Claim type used for roles
+  claims: Claim[];
+};
+
+// Extract logout_hint from claims
+function extractLogoutHintFromClaims(claims: Claim[]): string | undefined {
+  const preferred = claims.find((c) => c.typ === "preferred_username")?.val;
+  const email = claims.find(
+    (c) =>
+      c.typ ===
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+  )?.val;
+  const upn = claims.find(
+    (c) => c.typ === "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"
+  )?.val;
+  return preferred || email || upn;
+}
+
 // Enhanced Logout with logout_hint
 app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
 
-  // Extract userDetails from x-ms-client-principal header
   const b64 = req.header("x-ms-client-principal");
   let logoutHint = "";
 
@@ -74,13 +101,12 @@ app.get("/logout", (req, res) => {
     try {
       const decoded = Buffer.from(b64, "base64").toString("utf8");
       const principal = JSON.parse(decoded) as ClientPrincipal;
-      logoutHint = principal.userDetails; // usually email or UPN
+      logoutHint = extractLogoutHintFromClaims(principal.claims) ?? "";
     } catch (err) {
       console.warn("Failed to parse client principal:", err);
     }
   }
 
-  // Construct logout URL with logout_hint
   const logoutUrl = new URL("/.auth/logout", base);
   logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
 
@@ -91,17 +117,7 @@ app.get("/logout", (req, res) => {
   res.redirect(logoutUrl.toString());
 });
 
-
-// Me Object
-type ClientPrincipal = {
-  identityProvider: string;
-  userId: string;
-  userDetails: string;
-  userRoles: string[];
-  claims?: { typ: string; val: string }[];
-};
-
-// Authnetication user
+// Me
 app.get("/api/me", (req, res) => {
   const b64 = req.header("x-ms-client-principal");
   if (!b64) {
@@ -112,18 +128,6 @@ app.get("/api/me", (req, res) => {
   const principal = JSON.parse(decoded) as ClientPrincipal;
 
   return res.status(200).json({ authenticated: true, principal });
-});
-
-// Authnetication user
-app.get("/api/me/raw", (req, res) => {
-  const b64 = req.header("x-ms-client-principal");
-  if (!b64) {
-    return res.status(200).json({ authenticated: false });
-  }
-  
-  const decoded = Buffer.from(b64, "base64").toString("utf8");
-
-  return res.status(200).json({ decoded });
 });
 
 // Access Token
