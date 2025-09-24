@@ -51,14 +51,46 @@ app.get("/login", (req, res) => {
 });
 
 //  Logout
+// app.get("/logout", (req, res) => {
+//   const base = process.env.BASE_URL!;
+//   const returnTo =
+//     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+//   const logoutUrl = new URL("/.auth/logout", base);
+//   logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
+//   res.redirect(logoutUrl.toString());
+// });
+
+// Enhanced Logout with logout_hint
 app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+
+  // Extract userDetails from x-ms-client-principal header
+  const b64 = req.header("x-ms-client-principal");
+  let logoutHint = "";
+
+  if (b64) {
+    try {
+      const decoded = Buffer.from(b64, "base64").toString("utf8");
+      const principal = JSON.parse(decoded) as ClientPrincipal;
+      logoutHint = principal.userDetails; // usually email or UPN
+    } catch (err) {
+      console.warn("Failed to parse client principal:", err);
+    }
+  }
+
+  // Construct logout URL with logout_hint
   const logoutUrl = new URL("/.auth/logout", base);
   logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
+
+  if (logoutHint) {
+    logoutUrl.searchParams.set("logout_hint", logoutHint);
+  }
+
   res.redirect(logoutUrl.toString());
 });
+
 
 // Me Object
 type ClientPrincipal = {
