@@ -51,14 +51,14 @@ app.get("/login", (req, res) => {
 });
 
 //  Logout
-// app.get("/logout", (req, res) => {
-//   const base = process.env.BASE_URL!;
-//   const returnTo =
-//     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-//   const logoutUrl = new URL("/.auth/logout", base);
-//   logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
-//   res.redirect(logoutUrl.toString());
-// });
+app.get("/logout", (req, res) => {
+  const base = process.env.BASE_URL!;
+  const returnTo =
+    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  const logoutUrl = new URL("/.auth/logout", base);
+  logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
+  res.redirect(logoutUrl.toString());
+});
 
 // Claim Object
 type Claim = {
@@ -73,52 +73,6 @@ type ClientPrincipal = {
   role_typ: string; // Claim type used for roles
   claims: Claim[];
 };
-
-// Extract logout_hint from claims
-function extractLogoutHintFromClaims(claims: Claim[]): string | undefined {
-  const preferred = claims.find((c) => c.typ === "preferred_username")?.val;
-  const email = claims.find(
-    (c) =>
-      c.typ ===
-      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
-  )?.val;
-  const upn = claims.find(
-    (c) => c.typ === "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"
-  )?.val;
-  return preferred || email || upn;
-}
-
-// Enhanced Logout with logout_hint
-app.get("/logout", (req, res) => {
-  const base = process.env.BASE_URL!;
-  const returnTo =
-    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-
-  const b64 = req.header("x-ms-client-principal");
-  let logoutHint = "";
-  console.log("logout started");
-  if (b64) {
-    try {
-      const decoded = Buffer.from(b64, "base64").toString("utf8");
-      const principal = JSON.parse(decoded) as ClientPrincipal;
-      logoutHint = extractLogoutHintFromClaims(principal.claims) ?? "";
-      console.log(logoutHint);
-    } catch (err) {
-      console.warn("Failed to parse client principal:", err);
-    }
-  }
-
-  const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
-  
-  console.log("logout ended");
-
-  if (logoutHint) {
-    logoutUrl.searchParams.set("logout_hint", logoutHint);
-  }
-
-  res.redirect(logoutUrl.toString());
-});
 
 // Me
 app.get("/api/me", (req, res) => {
