@@ -114,6 +114,18 @@ app.get("/api/me", (req, res) => {
   return res.status(200).json({ authenticated: true, principal });
 });
 
+// Authnetication user
+app.get("/api/me/raw", (req, res) => {
+  const b64 = req.header("x-ms-client-principal");
+  if (!b64) {
+    return res.status(200).json({ authenticated: false });
+  }
+  
+  const decoded = Buffer.from(b64, "base64").toString("utf8");
+
+  return res.status(200).json({ decoded });
+});
+
 // Access Token
 app.get("/api/token", (req, res) => {
   const accessToken = req.header("x-ms-token-aad-access-token");
