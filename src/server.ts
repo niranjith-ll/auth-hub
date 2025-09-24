@@ -46,7 +46,7 @@ app.get("/login", (req, res) => {
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   const loginUrl = new URL("/.auth/login/aad", base);
-  loginUrl.searchParams.set("post_login_redirect_url", returnTo);
+  loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
   res.redirect(loginUrl.toString());
 });
 
@@ -56,7 +56,7 @@ app.get("/logout", (req, res) => {
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_url", returnTo);
+  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
   res.redirect(logoutUrl.toString());
 });
 
