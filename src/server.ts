@@ -45,8 +45,16 @@ app.get("/login", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  const prompt = (req.query.prompt as string) ?? "login";
+  
   const loginUrl = new URL("/.auth/login/aad", base);
   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
+  
+  // Add prompt parameter if provided (e.g., prompt=login to force fresh auth)
+  if (prompt) {
+    loginUrl.searchParams.set("prompt", prompt);
+  }
+  
   res.redirect(loginUrl.toString());
 });
 
@@ -55,8 +63,10 @@ app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  
+  // Use logout endpoint but redirect to login with prompt=login to ensure consistent behavior
   const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", "/login");
+  logoutUrl.searchParams.set("post_logout_redirect_uri", `${base}/login?returnTo=${encodeURIComponent(returnTo)}&prompt=login`);
   res.redirect(logoutUrl.toString());
 });
 
