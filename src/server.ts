@@ -50,10 +50,8 @@ app.get("/login", (req, res) => {
   const loginUrl = new URL("/.auth/login/aad", base);
   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
   
-  // Add prompt parameter if provided (e.g., prompt=login to force fresh auth)
-  if (prompt) {
-    loginUrl.searchParams.set("prompt", prompt);
-  }
+  // Always set prompt parameter (e.g., prompt=login to force fresh auth)
+  loginUrl.searchParams.set("prompt", prompt);
   
   res.redirect(loginUrl.toString());
 });
