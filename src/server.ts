@@ -51,13 +51,35 @@ app.get("/login", (req, res) => {
 });
 
 //  Logout
-app.get("/logout", (req, res) => {
+app.get("/logout", async (req, res) => {
   const base = process.env.BASE_URL!;
-  const returnTo =
-    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-  const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", new URL("https://customer-entra.lodgelink.com/en/dashboard").toString());
-  res.redirect(logoutUrl.toString());
+  const tenantId = "ed65d1f7-d6db-4d0e-b08f-628683d39744";
+  
+  try {
+    // Get ID token from Easy Auth
+    const authResponse = await fetch(`${base}/.auth/me`, {
+      headers: { 'Cookie': req.headers.cookie || '' }
+    });
+    const authData = await authResponse.json();
+    const idToken = authData[0]?.id_token;
+    
+    // Build direct Microsoft logout URL
+    const logoutUrl = new URL(
+      `https://${tenantId}.ciamlogin.com/${tenantId}/oauth2/v2.0/logout`
+    );
+    logoutUrl.searchParams.set(
+      "post_logout_redirect_uri",
+      "https://customer-entra.lodgelink.com/en/dashboard"
+    );
+    
+    if (idToken) {
+      logoutUrl.searchParams.set("id_token_hint", idToken);
+    }
+    
+    res.redirect(logoutUrl.toString());
+  } catch (error) {
+    res.redirect(`${base}/.auth/logout`);
+  }
 });
 
 // Claim Object
