@@ -50,24 +50,53 @@ app.get("/login", (req, res) => {
   const loginUrl = new URL("/.auth/login/aad", base);
   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
 
-  loginUrl.searchParams.set("prompt", prompt);
+  // Force fresh authentication to prevent login.srf issues
+  loginUrl.searchParams.set("prompt", "login");
   
-  
-  // Add cache-busting parameter to prevent cached login.srf issues
+  // Add multiple cache-busting parameters to prevent cached login.srf issues
   loginUrl.searchParams.set("_t", Date.now().toString());
+  loginUrl.searchParams.set("_r", Math.random().toString(36).substring(7));
+  loginUrl.searchParams.set("force_fresh", "true");
   
   res.redirect(loginUrl.toString());
 });
 
-//  Logout
+// //  Logout
+// app.get("/logout", (req, res) => {
+//   const base = process.env.BASE_URL!;
+//   const returnTo =
+//     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  
+//   // Use logout endpoint with additional parameters to force complete logout
+//   const logoutUrl = new URL("/.auth/logout", base);
+//   logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  
+//   // Add parameters to force complete logout and prevent cached login.srf
+//   logoutUrl.searchParams.set("_t", Date.now().toString());
+//   logoutUrl.searchParams.set("clear_cache", "true");
+  
+//   res.redirect(logoutUrl.toString());
+// });
+
+// Force Logout - More aggressive logout that clears all state
 app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   
-  // Use logout endpoint and redirect directly to the target with cache-busting
+  // Set headers to prevent caching and clear any stored authentication
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
+  // Use logout endpoint with maximum cache-busting
   const logoutUrl = new URL("/.auth/logout", base);
   logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  logoutUrl.searchParams.set("_t", Date.now().toString());
+  logoutUrl.searchParams.set("_r", Math.random().toString(36).substring(7));
+  logoutUrl.searchParams.set("clear_cache", "true");
+  logoutUrl.searchParams.set("force_logout", "true");
+  
   res.redirect(logoutUrl.toString());
 });
 
