@@ -78,26 +78,43 @@ app.get("/login", (req, res) => {
 //   res.redirect(logoutUrl.toString());
 // });
 
-// Logout - Fixed to redirect to target app instead of .auth/logout/complete
+// Logout - Direct approach that bypasses Azure App Service logout to prevent login.srf
 app.get("/logout", (req, res) => {
-  const base = process.env.BASE_URL!;
-  const returnTo =
-    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  const returnTo = (req.query.returnTo as string) ?? "https://customer-entra.lodgelink.com";
   
   // Set headers to prevent caching and clear any stored authentication
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
   
-  // Use logout endpoint and ensure it redirects to the target app, not .auth/logout/complete
-  const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  // Instead of using Azure's logout, redirect directly to Entra ID logout
+  // This bypasses the Azure App Service layer that's causing the login.srf issue
+  const tenantId = process.env.ENTRA_TENANT_ID;
+  const clientId = process.env.CLIENT_ID;
+  const logoutUrl = `https://${tenantId}.ciamlogin.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(returnTo)}&client_id=${clientId}`;
   
-  // Add cache-busting parameters
-  logoutUrl.searchParams.set("_t", Date.now().toString());
-  logoutUrl.searchParams.set("_r", Math.random().toString(36).substring(7));
+  res.redirect(logoutUrl);
+});
+
+// Alternative logout - Clear session and redirect without OAuth logout
+app.get("/logout-simple", (req, res) => {
+  const returnTo = (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   
-  res.redirect(logoutUrl.toString());
+  // Set aggressive headers to clear all browser data
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+  
+  // Clear any potential session cookies
+  res.clearCookie('AppServiceAuthSession');
+  res.clearCookie('AppServiceAuthSessionV2');
+  res.clearCookie('ARRAffinity');
+  res.clearCookie('ARRAffinitySameSite');
+  
+  // Redirect directly to target app - no OAuth logout
+  res.redirect(returnTo);
 });
 
 // Handle Azure logout completion redirect - this catches .auth/logout/complete redirects
