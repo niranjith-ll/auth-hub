@@ -52,22 +52,11 @@ app.get("/login", (req, res) => {
 
 //  Logout
 app.get("/logout", (req, res) => {
+  const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-  const idToken = req.header("x-ms-token-aad-id-token");
-  
-  // Use direct CIAM logout endpoint instead of Azure App Service auth
-  const tenantId = process.env.ENTRA_TENANT_ID!;
-  const logoutUrl = new URL(`https://${tenantId}.ciamlogin.com/${tenantId}/oauth2/v2.0/logout`);
-  
-  // Set the post_logout_redirect_uri
-  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
-  
-  // Add id_token_hint if available (recommended for CIAM)
-  if (idToken) {
-    logoutUrl.searchParams.set("id_token_hint", idToken);
-  }
-  
+  const logoutUrl = new URL("/.auth/logout", base);
+  logoutUrl.searchParams.set("post_logout_redirect_uri", "/login");
   res.redirect(logoutUrl.toString());
 });
 
