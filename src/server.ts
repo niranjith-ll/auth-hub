@@ -78,7 +78,7 @@ app.get("/login", (req, res) => {
 //   res.redirect(logoutUrl.toString());
 // });
 
-// Logout - Direct approach that bypasses Azure App Service logout to prevent login.srf
+// Logout - Reliable fix that prevents login.srf redirect loop
 app.get("/logout", (req, res) => {
   const returnTo = (req.query.returnTo as string) ?? "https://customer-entra.lodgelink.com";
   
@@ -88,13 +88,122 @@ app.get("/logout", (req, res) => {
   res.setHeader('Expires', '0');
   res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
   
-  // Instead of using Azure's logout, redirect directly to Entra ID logout
-  // This bypasses the Azure App Service layer that's causing the login.srf issue
-  const tenantId = process.env.ENTRA_TENANT_ID;
-  const clientId = process.env.CLIENT_ID;
-  const logoutUrl = `https://${tenantId}.ciamlogin.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(returnTo)}&client_id=${clientId}`;
+  // Instead of redirecting to Entra ID logout (which causes login.srf loop),
+  // redirect to our own logout handler that will then redirect to the target
+  const logoutHandlerUrl = `${process.env.BASE_URL}/logout-handler?returnTo=${encodeURIComponent(returnTo)}`;
+  res.redirect(logoutHandlerUrl);
+});
+
+// Logout handler that performs the actual logout and prevents login.srf loop
+app.get("/logout-handler", (req, res) => {
+  const returnTo = (req.query.returnTo as string) ?? "https://customer-entra.lodgelink.com";
   
-  res.redirect(logoutUrl);
+  // Set aggressive headers to clear all browser data
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+  
+  // Clear all potential Azure App Service cookies
+  res.clearCookie('AppServiceAuthSession');
+  res.clearCookie('AppServiceAuthSessionV2');
+  res.clearCookie('ARRAffinity');
+  res.clearCookie('ARRAffinitySameSite');
+  res.clearCookie('ARRAffinitySameSiteV2');
+  
+  // Return a page that performs logout via JavaScript and then redirects
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Logging out...</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { 
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: #f5f5f5;
+        }
+        .container {
+          text-align: center;
+          background: white;
+          padding: 2rem;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .spinner {
+          border: 3px solid #f3f3f3;
+          border-top: 3px solid #0078d4;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="spinner"></div>
+        <h2>Logging out...</h2>
+        <p>Please wait while we log you out securely.</p>
+        <script>
+          // Clear all browser storage
+          if (window.localStorage) {
+            localStorage.clear();
+          }
+          if (window.sessionStorage) {
+            sessionStorage.clear();
+          }
+          
+          // Clear any cookies we can access
+          document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+          });
+          
+          // Perform logout via iframe to avoid redirect loops
+          function performLogout() {
+            const tenantId = '${process.env.ENTRA_TENANT_ID}';
+            const clientId = '${process.env.CLIENT_ID}';
+            
+            // Create hidden iframe to perform logout
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = \`https://\${tenantId}.ciamlogin.com/\${tenantId}/oauth2/v2.0/logout?client_id=\${clientId}\`;
+            
+            iframe.onload = function() {
+              // After iframe loads, redirect to target
+              setTimeout(() => {
+                window.location.href = '${returnTo}';
+              }, 1000);
+            };
+            
+            iframe.onerror = function() {
+              // If iframe fails, still redirect
+              setTimeout(() => {
+                window.location.href = '${returnTo}';
+              }, 1000);
+            };
+            
+            document.body.appendChild(iframe);
+          }
+          
+          // Start logout process after a short delay
+          setTimeout(performLogout, 500);
+        </script>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 // Alternative logout - Clear session and redirect without OAuth logout
