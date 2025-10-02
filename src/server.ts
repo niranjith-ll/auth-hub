@@ -78,7 +78,7 @@ app.get("/login", (req, res) => {
 //   res.redirect(logoutUrl.toString());
 // });
 
-// Force Logout - More aggressive logout that clears all state
+// Logout - Fixed to redirect to target app instead of .auth/logout/complete
 app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
@@ -89,15 +89,28 @@ app.get("/logout", (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   
-  // Use logout endpoint with maximum cache-busting
+  // Use logout endpoint and ensure it redirects to the target app, not .auth/logout/complete
   const logoutUrl = new URL("/.auth/logout", base);
   logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  
+  // Add cache-busting parameters
   logoutUrl.searchParams.set("_t", Date.now().toString());
   logoutUrl.searchParams.set("_r", Math.random().toString(36).substring(7));
-  logoutUrl.searchParams.set("clear_cache", "true");
-  logoutUrl.searchParams.set("force_logout", "true");
   
   res.redirect(logoutUrl.toString());
+});
+
+// Handle Azure logout completion redirect - this catches .auth/logout/complete redirects
+app.get("/.auth/logout/complete", (req, res) => {
+  const returnTo = (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  
+  // Set headers to prevent caching
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
+  // Redirect to the target application
+  res.redirect(returnTo);
 });
 
 // Claim Object
