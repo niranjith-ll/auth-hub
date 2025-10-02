@@ -60,6 +60,22 @@ app.get("/logout", (req, res) => {
   res.redirect(logoutUrl.toString());
 });
 
+
+app.get("/auth-info", async (req, res) => {
+  try {
+    // Get access token from Easy Auth
+    const authMeResponse = await fetch(`${process.env.BASE_URL}/.auth/me`, {
+      headers: { 'Cookie': req.headers.cookie || '' }
+    });
+    const authData = await authMeResponse.json();
+    const accessToken = authData[0]?.access_token;
+    
+    res.json({authData, accessToken});
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user data' });
+  }
+});
+
 // Claim Object
 type Claim = {
   typ: string;
