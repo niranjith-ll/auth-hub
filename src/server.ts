@@ -45,8 +45,17 @@ app.get("/login", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  const prompt = (req.query.prompt as string) ?? "login";
+  
   const loginUrl = new URL("/.auth/login/aad", base);
   loginUrl.searchParams.set("post_login_redirect_uri", returnTo);
+
+  loginUrl.searchParams.set("prompt", prompt);
+  
+  
+  // Add cache-busting parameter to prevent cached login.srf issues
+  loginUrl.searchParams.set("_t", Date.now().toString());
+  
   res.redirect(loginUrl.toString());
 });
 
@@ -55,8 +64,10 @@ app.get("/logout", (req, res) => {
   const base = process.env.BASE_URL!;
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  
+  // Use logout endpoint and redirect directly to the target with cache-busting
   const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", "/login");
+  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
   res.redirect(logoutUrl.toString());
 });
 
