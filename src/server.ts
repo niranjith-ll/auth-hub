@@ -56,7 +56,7 @@ app.get("/logout", (req, res) => {
   const returnTo =
     (req.query.returnTo as string) ?? "https://app.lodgelink.com";
   const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", encodeURIComponent("https://customer-entra.lodgelink.com/en/dashboard"));
+  logoutUrl.searchParams.set("post_logout_redirect_uri", new URL("https://customer-entra.lodgelink.com/en/dashboard").toString());
   res.redirect(logoutUrl.toString());
 });
 
