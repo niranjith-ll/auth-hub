@@ -51,13 +51,36 @@ app.get("/login", (req, res) => {
 });
 
 //  Logout
-app.get("/logout", (req, res) => {
-  const base = process.env.BASE_URL!;
-  const returnTo =
-    (req.query.returnTo as string) ?? "https://app.lodgelink.com";
-  const logoutUrl = new URL("/.auth/logout", base);
-  logoutUrl.searchParams.set("post_logout_redirect_uri", "/login");
-  res.redirect(logoutUrl.toString());
+app.get("/logout", async (req, res) => {
+  try {
+    const base = process.env.BASE_URL!;
+    const returnTo =
+      (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+    const logoutUrl = new URL("/.auth/logout", base);
+    logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+    
+    // Get auth data to extract id token for hint
+    try {
+      const authMeResponse = await fetch(`${process.env.BASE_URL}/.auth/me`, {
+        headers: { 'Cookie': req.headers.cookie || '' }
+      });
+      const authData = await authMeResponse.json();
+      const idToken = authData[0]?.id_token;
+      
+      // Add id_token_hint if available
+      if (idToken) {
+        logoutUrl.searchParams.set("id_token_hint", idToken);
+      }
+    } catch (error) {
+      // Continue with logout even if we can't get the id token
+      console.warn("Could not retrieve id token for logout hint:", error);
+    }
+    
+    res.redirect(logoutUrl.toString());
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
 });
 
 
