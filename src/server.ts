@@ -80,7 +80,7 @@ app.get("/login", (req, res) => {
 
 // Logout - Direct approach that bypasses Azure App Service logout to prevent login.srf
 app.get("/logout", (req, res) => {
-  const returnTo = (req.query.returnTo as string) ?? "https://app.lodgelink.com";
+  const returnTo = (req.query.returnTo as string) ?? "https://customer-entra.lodgelink.com";
   
   // Set headers to prevent caching and clear any stored authentication
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
