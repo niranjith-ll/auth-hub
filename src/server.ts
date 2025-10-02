@@ -78,7 +78,7 @@ app.get("/login", (req, res) => {
 //   res.redirect(logoutUrl.toString());
 // });
 
-// Logout - Reliable fix that prevents login.srf redirect loop
+// Logout - Properly clears Azure App Service session to invalidate tokens
 app.get("/logout", (req, res) => {
   const returnTo = (req.query.returnTo as string) ?? "https://customer-entra.lodgelink.com";
   
@@ -88,10 +88,14 @@ app.get("/logout", (req, res) => {
   res.setHeader('Expires', '0');
   res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
   
-  // Instead of redirecting to Entra ID logout (which causes login.srf loop),
-  // redirect to our own logout handler that will then redirect to the target
-  const logoutHandlerUrl = `${process.env.BASE_URL}/logout-handler?returnTo=${encodeURIComponent(returnTo)}`;
-  res.redirect(logoutHandlerUrl);
+  // Use Azure App Service logout endpoint to properly clear the server-side session
+  // This is CRITICAL to invalidate the tokens that /api/token returns
+  const base = process.env.BASE_URL!;
+  const logoutUrl = new URL("/.auth/logout", base);
+  logoutUrl.searchParams.set("post_logout_redirect_uri", returnTo);
+  
+  console.log('🔴 LOGOUT: Redirecting to Azure logout:', logoutUrl.toString());
+  res.redirect(logoutUrl.toString());
 });
 
 // Logout handler that performs the actual logout and prevents login.srf loop
@@ -273,6 +277,21 @@ app.get("/api/token", (req, res) => {
     return res.status(401).json({ error: "no_token" });
   }
   return res.status(200).json({ accessToken });
+});
+
+// Debug endpoint to check authentication status
+app.get("/api/auth-status", (req, res) => {
+  const accessToken = req.header("x-ms-token-aad-access-token");
+  const idToken = req.header("x-ms-token-aad-id-token");
+  const principal = req.header("x-ms-client-principal");
+  
+  res.json({
+    hasAccessToken: !!accessToken,
+    hasIdToken: !!idToken,
+    hasPrincipal: !!principal,
+    isAuthenticated: !!(accessToken || idToken || principal),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // OBO Token
